@@ -1,4 +1,5 @@
-<!doctype html><html lang="es"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="robots" content="noindex"></head><body>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <title>Dra. López · App de pacientes</title>
 <style>
 /* ============ SHELL (presentación) ============ */
@@ -1503,4 +1504,171 @@ document.documentElement.classList.add('anim');
 })();
 </script>
 
-</body></html>
+<style id="app-mode-css">
+/* ===== MODO APP (móvil): la app real, full-screen, una pantalla a la vez ===== */
+html.app-mode,html.app-mode body{background:#FAF9F6;overscroll-behavior:none}
+html.app-mode body{overflow:hidden;position:fixed;inset:0;width:100%}
+html.app-mode *{-webkit-tap-highlight-color:transparent}
+html.app-mode .wrap{max-width:none;padding:0;margin:0}
+html.app-mode header.hero{display:none}
+html.app-mode section.sec{margin:0}
+html.app-mode section.sec > :not(.grid){display:none}
+html.app-mode .grid{display:block}
+html.app-mode figcaption{display:none}
+html.app-mode figure.ph{display:none}
+html.app-mode figure.ph.app-on{display:block;position:fixed;inset:0;z-index:60;overflow:hidden;
+  background:#FAF9F6;margin:0;opacity:1;transform:none;transition:none;user-select:none;-webkit-user-select:none}
+html.app-mode figure.ph.app-on .ph-shell{width:302px;margin:0;border:0;border-radius:0;box-shadow:none}
+html.app-mode figure.ph.app-on .ph-scr{height:100%;animation:appScrIn .28s ease}
+html.app-mode figure.ph.app-on .scr-pad{overflow-y:auto;-webkit-overflow-scrolling:touch}
+html.app-mode figure.ph.app-on .scr-pad > *{flex-shrink:0}
+@keyframes appScrIn{from{opacity:0}to{opacity:1}}
+html.app-mode .app-on .btn,html.app-mode .app-on .li,html.app-mode .app-on .meal,
+html.app-mode .app-on .tb a,html.app-mode .app-on .back,html.app-mode .app-on .card,
+html.app-mode .app-on .h-sec a,html.app-mode .app-on .avatar{cursor:pointer}
+html.app-mode .app-on .btn:active,html.app-mode .app-on .li:active,
+html.app-mode .app-on .meal:active,html.app-mode .app-on .card:active{opacity:.82}
+@media (prefers-reduced-motion:reduce){
+  html.app-mode figure.ph.app-on .ph-scr{animation:none}
+}
+</style>
+<script id="app-mode-js">
+(function(){
+  var root=document.documentElement;
+  var mq=matchMedia('(max-width: 820px)');
+  var screens=[].slice.call(document.querySelectorAll('figure.ph'));
+  if(!screens.length)return;
+  /* índice de pantallas en orden de documento */
+  var S={ENTRADA:0,ONB2:1,SPLASH:2,ONB1:3,LOGIN:4,REGISTRO:5,CONSENT:6,
+    HOME:7,PLAN:8,COMIDA:9,RECETA:10,COMPRAS:11,REG:12,AGUA:13,SINT:14,GLP:15,
+    EJER:16,EJERCAL:17,PROG:18,PESO:19,FOTOS:20,CUIDADO:21,MEDS:22,MSJ:23,
+    CITAS:24,PAGOS:25,EDU:26,PERFIL:27,AJUSTES:28,NOTIF:29,
+    EMPTY:30,LOADING:31,ERROR:32,SUCCESS:33};
+  var cur=-1,stack=[];
+
+  var LOCAL={};
+  LOCAL[S.ENTRADA]={'Crear mi cuenta':S.REGISTRO,'Ya tengo cuenta':S.LOGIN};
+  LOCAL[S.ONB2]={'Continuar':S.HOME};
+  LOCAL[S.SPLASH]={'[\\s\\S]':S.ENTRADA};
+  LOCAL[S.ONB1]={'Continuar':S.ONB2};
+  LOCAL[S.LOGIN]={'Entrar':S.HOME,'Crear|Regístrate':S.REGISTRO};
+  LOCAL[S.REGISTRO]={'Continuar':S.CONSENT};
+  LOCAL[S.CONSENT]={'Aceptar':S.ONB1};
+  LOCAL[S.HOME]={'Ver plan':S.PLAN,'Desayuno|Almuerzo|Merienda|Cena':S.COMIDA,
+    'Semaglutida':S.MEDS,'Cita con Analeidy':S.CITAS,'Analeidy ·':S.MSJ};
+  LOCAL[S.PLAN]={'Desayuno|Almuerzo|Merienda|Cena':S.COMIDA,'Recetas de la semana':S.RECETA,'Lista de compras':S.COMPRAS};
+  LOCAL[S.RECETA]={'Añadir ingredientes':S.COMPRAS};
+  LOCAL[S.REG]={'^Comida$':S.SUCCESS,'^Agua$':S.AGUA,'Síntomas':S.SINT,'GLP':S.GLP,
+    'Medicamento':S.MEDS,'Ejercicio':S.EJER,'Sueño':S.SUCCESS,'Nota personal':S.SUCCESS};
+  LOCAL[S.EJER]={'Calendario':S.EJERCAL};
+  LOCAL[S.PROG]={'Gráfico de peso':S.PESO,'Fotos de progreso':S.FOTOS};
+  LOCAL[S.CUIDADO]={'Mensajes':S.MSJ,'Asistente IA':S.MSJ,'Citas':S.CITAS,
+    'Tratamiento':S.MEDS,'Pagos':S.PAGOS,'Educación':S.EDU};
+  LOCAL[S.PERFIL]={'Datos personales':S.AJUSTES,'Notificaciones':S.NOTIF,'Cerrar sesión':S.ENTRADA};
+  LOCAL[S.ERROR]={'Seguir usando':S.HOME};
+  LOCAL[S.SUCCESS]={'Listo':S.HOME};
+  var GLOBAL={'Guardar registro':S.SUCCESS,'Lista de compras':S.COMPRAS,
+    'Gráfico de peso':S.PESO,'Fotos de progreso':S.FOTOS,'Ver plan':S.PLAN};
+
+  function fit(fig){
+    var sh=fig.querySelector('.ph-shell');if(!sh)return;
+    var s=window.innerWidth/302;
+    sh.style.transform='scale('+s+')';
+    sh.style.transformOrigin='0 0';
+    sh.style.height=(window.innerHeight/s)+'px';
+  }
+  function vids(fig,play){
+    var v=fig.querySelectorAll('video');
+    for(var i=0;i<v.length;i++){
+      if(play&&!matchMedia('(prefers-reduced-motion: reduce)').matches){
+        try{var p=v[i].play();if(p&&p.catch)p.catch(function(){})}catch(e){}
+      }else if(!play){try{v[i].pause()}catch(e){}}
+    }
+  }
+  function show(i,push){
+    if(!root.classList.contains('app-mode'))return;
+    if(i==null||!screens[i]||i===cur)return;
+    if(push!==false&&cur>=0)stack.push(cur);
+    if(i===S.ENTRADA)stack=[];
+    if(cur>=0){screens[cur].classList.remove('app-on');vids(screens[cur],false)}
+    cur=i;
+    var f=screens[i];
+    f.classList.add('app-on','in');
+    fit(f);
+    vids(f,true);
+  }
+  function goBack(){
+    var p=stack.pop();
+    if(p==null)p=(cur===S.HOME?S.ENTRADA:S.HOME);
+    show(p,false);
+  }
+  function txt(el){return (el.textContent||'').replace(/\s+/g,' ').trim()}
+  function match(map,s){
+    if(!map)return null;
+    for(var k in map){if(new RegExp(k).test(s))return map[k]}
+    return null;
+  }
+
+  document.addEventListener('click',function(e){
+    if(!root.classList.contains('app-mode')||cur<0)return;
+    var t=e.target;
+    if(!t||!t.closest)return;
+    var tab=t.closest('.tb a');
+    if(tab){
+      e.preventDefault();
+      if(tab.querySelector('.fab')){show(S.REG);return}
+      var tt=txt(tab);
+      if(/Inicio/.test(tt))show(S.HOME);
+      else if(/Plan/.test(tt))show(S.PLAN);
+      else if(/Progreso/.test(tt))show(S.PROG);
+      else if(/Cuidado/.test(tt))show(S.CUIDADO);
+      return;
+    }
+    if(t.closest('.back')){goBack();return}
+    if((cur===S.ONB1||cur===S.ONB2)&&/Saltar/.test(txt(t))){show(S.HOME);return}
+    if(cur===S.HOME){
+      if(t.closest('.avatar')){show(S.PERFIL);return}
+      var sv=t.closest('svg.icon');
+      if(sv){var u=sv.querySelector('use');
+        if(u&&((u.getAttribute('href')||u.getAttributeNS('http://www.w3.org/1999/xlink','href')||'').indexOf('bell')>-1)){show(S.NOTIF);return}}
+    }
+    var el=t.closest('.btn,.li,.meal,.h-sec a,.card,.chip');
+    if(!el)return;
+    var s=txt(el);
+    var dest=match(LOCAL[cur],s);
+    if(dest==null)dest=match(GLOBAL,s);
+    if(dest!=null)show(dest);
+  },true);
+
+  /* botón atrás del teléfono: navega dentro de la app */
+  window.addEventListener('popstate',function(){
+    if(root.classList.contains('app-mode')&&stack.length){
+      goBack();
+      try{history.pushState({app:1},'')}catch(e){}
+    }
+  });
+
+  function setMode(on){
+    if(on){
+      root.classList.add('app-mode');
+      window.scrollTo(0,0);
+      if(cur<0){show(S.ENTRADA,false)}
+      else{screens[cur].classList.add('app-on');fit(screens[cur]);vids(screens[cur],true)}
+      try{history.pushState({app:1},'')}catch(e){}
+    }else{
+      root.classList.remove('app-mode');
+      for(var i=0;i<screens.length;i++){
+        screens[i].classList.remove('app-on');
+        var sh=screens[i].querySelector('.ph-shell');
+        if(sh){sh.style.transform='';sh.style.transformOrigin='';sh.style.height=''}
+      }
+    }
+  }
+  setMode(mq.matches);
+  if(mq.addEventListener)mq.addEventListener('change',function(ev){setMode(ev.matches)});
+  else if(mq.addListener)mq.addListener(function(ev){setMode(ev.matches)});
+  window.addEventListener('resize',function(){
+    if(root.classList.contains('app-mode')&&cur>=0)fit(screens[cur]);
+  });
+})();
+</script>
