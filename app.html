@@ -1550,6 +1550,12 @@ document.documentElement.classList.add('anim');
   .app-on .btn:active,.app-on .li:active,
   .app-on .meal:active,.app-on .card:active{opacity:.82}
 }
+/* Congela transiciones y animaciones un instante para poder rebobinarlas: sin esto,
+   quitar la clase 'in' arranca la transición inversa en vez de saltar al estado
+   inicial, y al volver a una pantalla la animación ya no se veía. */
+.noanim,.noanim *,.noanim *::before,.noanim *::after{
+  transition:none!important;animation:none!important}
+
 @media (prefers-reduced-motion:reduce){
   figure.ph .ph-scr{animation:none!important}
 }
@@ -1614,6 +1620,28 @@ document.documentElement.classList.add('anim');
       }else if(!play){try{v[i].pause()}catch(e){}}
     }
   }
+  /* Las animaciones internas (anillo del día, barras de progreso, adherencia, línea de
+     peso, vasos de agua, burbujas del chat, toast) se disparan con la clase 'in'.
+     Si esa clase se pone en el mismo instante en que la pantalla pasa a visible, el
+     navegador no tiene estado inicial desde el cual animar y salta directo al final:
+     por eso no se veía ninguna animación. Se quita 'in', se fuerza un reflow con la
+     pantalla ya visible y se vuelve a poner en el siguiente frame. Así la animación
+     se reproduce cada vez que se entra a la pantalla, como en una app de verdad. */
+  var reduce=matchMedia('(prefers-reduced-motion: reduce)');
+  function replay(f){
+    if(reduce.matches){f.classList.add('in');return}
+    /* 1) congelar, 2) rebobinar al estado inicial, 3) descongelar, 4) soltar */
+    f.classList.add('noanim');
+    f.classList.remove('in');
+    void f.offsetWidth;
+    f.classList.remove('noanim');
+    void f.offsetWidth;
+    if(window.requestAnimationFrame){
+      requestAnimationFrame(function(){
+        requestAnimationFrame(function(){f.classList.add('in')});
+      });
+    }else f.classList.add('in');
+  }
   function show(i,push){
     if(!root.classList.contains('app-mode'))return;
     if(i==null||!screens[i]||i===cur)return;
@@ -1622,8 +1650,9 @@ document.documentElement.classList.add('anim');
     if(cur>=0){screens[cur].classList.remove('app-on');vids(screens[cur],false)}
     cur=i;
     var f=screens[i];
-    f.classList.add('app-on','in');
+    f.classList.add('app-on');
     fit(f);
+    replay(f);
     vids(f,true);
   }
   function goBack(){
@@ -1681,8 +1710,12 @@ document.documentElement.classList.add('anim');
     if(on){
       root.classList.add('app-mode');
       window.scrollTo(0,0);
-      if(cur<0){show(S.ENTRADA,false)}
-      else{screens[cur].classList.add('app-on');fit(screens[cur]);vids(screens[cur],true)}
+      if(cur<0){
+        /* arranque de app real: splash de marca y enseguida la portada en video */
+        show(S.SPLASH,false);
+        setTimeout(function(){if(cur===S.SPLASH)show(S.ENTRADA,false)},1700);
+      }
+      else{screens[cur].classList.add('app-on');fit(screens[cur]);replay(screens[cur]);vids(screens[cur],true)}
       /* 'js-app' solo se pone cuando ya hay una pantalla montada: si algo falla
          antes, el CSS deja la app fluida a pantalla completa igualmente */
       if(cur>=0)root.classList.add('js-app');
